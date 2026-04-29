@@ -80,7 +80,7 @@ function Dashboard() {
     // create a draft row server-side so evidencioni_broj is generated immediately
     const { data, error } = await supabase
       .from("failure_reports")
-      .insert({ user_id: user.id })
+      .insert({ user_id: user.id, evidencioni_broj: "" } as any)
       .select("id")
       .single();
     setCreating(false);

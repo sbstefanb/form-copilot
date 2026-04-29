@@ -4,14 +4,11 @@ import { z } from "zod";
 const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-3-flash-preview";
 
-async function callAI(messages: Array<{ role: string; content: string }>, opts?: { responseFormat?: "json" }) {
+async function callAI(messages: Array<{ role: string; content: string }>) {
   const apiKey = process.env.LOVABLE_API_KEY;
   if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
 
   const body: any = { model: MODEL, messages };
-  if (opts?.responseFormat === "json") {
-    body.response_format = { type: "json_object" };
-  }
 
   const res = await fetch(AI_URL, {
     method: "POST",

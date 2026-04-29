@@ -86,7 +86,6 @@ JSON SCHEMA — vrati objekat sa OVIM ključevima (svi opcionalni, koristi null 
         { role: "system", content: system },
         { role: "user", content: data.description },
       ],
-      { responseFormat: "json" },
     );
     const parsed = safeJsonExtract(content);
     return { extracted: parsed ?? {} };
@@ -143,7 +142,6 @@ PRAVILA:
         { role: "system", content: system },
         { role: "user", content: JSON.stringify(data.form_state) },
       ],
-      { responseFormat: "json" },
     );
     let parsed = safeJsonExtract(content);
     // Some models wrap arrays into an object; normalize

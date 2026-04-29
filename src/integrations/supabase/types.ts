@@ -14,7 +14,138 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      failure_reports: {
+        Row: {
+          analizu_izvrsio: string | null
+          broj_izvrsilaca: number | null
+          created_at: string
+          datum: string
+          evidencioni_broj: string
+          id: string
+          imena_angazovanih: Json
+          ispunio: string | null
+          korektivna_mera: string | null
+          korektivnu_meru_predlozio: string | null
+          nacin_otklanjanja: string | null
+          napomena: string | null
+          ostale_usluge: string | null
+          pogon: string | null
+          posledice: string | null
+          sklop_podsklop: string | null
+          status: Database["public"]["Enums"]["report_status"]
+          tehnicka_analiza: string | null
+          tehnicki_sistem: string | null
+          tehnoloska_linija: string | null
+          ugradjeni_delovi: Json
+          updated_at: string
+          user_id: string
+          uzrok: string | null
+          vreme_otklanjanja: string | null
+          vreme_prijave: string | null
+          vrsta_kvara: string | null
+          vrsta_kvara_ostalo: string | null
+        }
+        Insert: {
+          analizu_izvrsio?: string | null
+          broj_izvrsilaca?: number | null
+          created_at?: string
+          datum?: string
+          evidencioni_broj: string
+          id?: string
+          imena_angazovanih?: Json
+          ispunio?: string | null
+          korektivna_mera?: string | null
+          korektivnu_meru_predlozio?: string | null
+          nacin_otklanjanja?: string | null
+          napomena?: string | null
+          ostale_usluge?: string | null
+          pogon?: string | null
+          posledice?: string | null
+          sklop_podsklop?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+          tehnicka_analiza?: string | null
+          tehnicki_sistem?: string | null
+          tehnoloska_linija?: string | null
+          ugradjeni_delovi?: Json
+          updated_at?: string
+          user_id: string
+          uzrok?: string | null
+          vreme_otklanjanja?: string | null
+          vreme_prijave?: string | null
+          vrsta_kvara?: string | null
+          vrsta_kvara_ostalo?: string | null
+        }
+        Update: {
+          analizu_izvrsio?: string | null
+          broj_izvrsilaca?: number | null
+          created_at?: string
+          datum?: string
+          evidencioni_broj?: string
+          id?: string
+          imena_angazovanih?: Json
+          ispunio?: string | null
+          korektivna_mera?: string | null
+          korektivnu_meru_predlozio?: string | null
+          nacin_otklanjanja?: string | null
+          napomena?: string | null
+          ostale_usluge?: string | null
+          pogon?: string | null
+          posledice?: string | null
+          sklop_podsklop?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+          tehnicka_analiza?: string | null
+          tehnicki_sistem?: string | null
+          tehnoloska_linija?: string | null
+          ugradjeni_delovi?: Json
+          updated_at?: string
+          user_id?: string
+          uzrok?: string | null
+          vreme_otklanjanja?: string | null
+          vreme_prijave?: string | null
+          vrsta_kvara?: string | null
+          vrsta_kvara_ostalo?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      report_counters: {
+        Row: {
+          last_seq: number
+          year: number
+        }
+        Insert: {
+          last_seq?: number
+          year: number
+        }
+        Update: {
+          last_seq?: number
+          year?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +154,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      report_status: "u_izradi" | "ceka_analizu" | "zavrsen"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +281,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      report_status: ["u_izradi", "ceka_analizu", "zavrsen"],
+    },
   },
 } as const

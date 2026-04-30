@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Save, Sparkles, CheckCircle2, Loader2, Trash2, Plus, Printer, ArrowLeft, Wand2,
+  Save, Sparkles, CheckCircle2, Loader2, Trash2, Plus, Printer, ArrowLeft, Wand2, Download,
 } from "lucide-react";
+import { exportReportToPdf } from "@/lib/pdf-export";
 import { useServerFn } from "@tanstack/react-start";
 
 import { RequireAuth } from "@/components/require-auth";
@@ -37,6 +38,13 @@ export const Route = createFileRoute("/izvestaj/$id")({
 });
 
 type FieldKey = keyof ReportFormState;
+
+const REQUIRED_FIELDS: FieldKey[] = [
+  "vrsta_kvara", "pogon", "tehnoloska_linija", "tehnicki_sistem", "sklop_podsklop",
+  "vreme_prijave", "vreme_otklanjanja", "uzrok", "posledice", "nacin_otklanjanja", "ispunio",
+];
+const isEmpty = (v: unknown) =>
+  v === "" || v === null || v === undefined || (Array.isArray(v) && v.length === 0);
 
 function ReportPage() {
   const { id } = Route.useParams();
@@ -246,6 +254,26 @@ function ReportPage() {
             )}
             <Button asChild variant="outline" size="sm">
               <Link to="/izvestaj/$id/print" params={{ id }}><Printer className="mr-1 h-4 w-4" />Štampaj</Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const missing = REQUIRED_FIELDS.filter((k) => isEmpty(form[k]));
+                if (missing.length > 0 || hasErrors) {
+                  toast.warning(
+                    `PDF se generiše, ali forma nije kompletna${missing.length ? ` (nepopunjeno: ${missing.length})` : ""}.`,
+                  );
+                }
+                try {
+                  await exportReportToPdf(form);
+                  toast.success("PDF preuzet.");
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Greška pri PDF-u");
+                }
+              }}
+            >
+              <Download className="mr-1 h-4 w-4" />Preuzmi PDF
             </Button>
             <Button variant="outline" size="sm" onClick={() => doSave()} disabled={saving} className="hidden sm:inline-flex">
               {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}

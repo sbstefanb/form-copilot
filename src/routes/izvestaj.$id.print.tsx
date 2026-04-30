@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ArrowLeft, Printer, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, Printer, Loader2, Download } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +37,47 @@ function PrintPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const [form, setForm] = useState<ReportFormState | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadPdf = async () => {
+    if (!printRef.current || !form) return;
+    setGenerating(true);
+    try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+      const canvas = await html2canvas(printRef.current, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      pdf.save(`${form.evidencioni_broj || "izvestaj"}.pdf`);
+      toast.success("PDF preuzet");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Greška pri generisanju PDF-a");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -63,16 +104,22 @@ function PrintPage() {
 
   return (
     <div className="min-h-screen bg-muted/30 py-6">
-      <div className="no-print mx-auto mb-4 flex max-w-3xl items-center justify-between px-4">
+      <div className="no-print mx-auto mb-4 flex max-w-3xl items-center justify-between gap-2 px-4">
         <Button asChild variant="ghost" size="sm">
           <Link to="/izvestaj/$id" params={{ id }}><ArrowLeft className="mr-1 h-4 w-4" />Nazad</Link>
         </Button>
-        <Button size="sm" onClick={() => window.print()}>
-          <Printer className="mr-1 h-4 w-4" />Štampaj
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => window.print()}>
+            <Printer className="mr-1 h-4 w-4" />Štampaj
+          </Button>
+          <Button size="sm" onClick={handleDownloadPdf} disabled={generating}>
+            {generating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
+            Preuzmi PDF
+          </Button>
+        </div>
       </div>
 
-      <div className="mx-auto max-w-3xl bg-white p-8 text-black shadow-sm print:p-0 print:shadow-none">
+      <div ref={printRef} className="mx-auto max-w-3xl bg-white p-8 text-black shadow-sm print:p-0 print:shadow-none">
         <div className="mb-4 flex items-start justify-between border-b pb-3">
           <div>
             <h1 className="text-xl font-bold">IZVEŠTAJ O KVARU</h1>

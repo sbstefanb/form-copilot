@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ArrowLeft, Printer, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, Printer, Loader2, Download } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +37,47 @@ function PrintPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const [form, setForm] = useState<ReportFormState | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadPdf = async () => {
+    if (!printRef.current || !form) return;
+    setGenerating(true);
+    try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+      const canvas = await html2canvas(printRef.current, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      pdf.save(`${form.evidencioni_broj || "izvestaj"}.pdf`);
+      toast.success("PDF preuzet");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Greška pri generisanju PDF-a");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;

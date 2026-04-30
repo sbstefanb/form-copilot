@@ -39,6 +39,13 @@ export const Route = createFileRoute("/izvestaj/$id")({
 
 type FieldKey = keyof ReportFormState;
 
+const REQUIRED_FIELDS: FieldKey[] = [
+  "vrsta_kvara", "pogon", "tehnoloska_linija", "tehnicki_sistem", "sklop_podsklop",
+  "vreme_prijave", "vreme_otklanjanja", "uzrok", "posledice", "nacin_otklanjanja", "ispunio",
+];
+const isEmpty = (v: unknown) =>
+  v === "" || v === null || v === undefined || (Array.isArray(v) && v.length === 0);
+
 function ReportPage() {
   const { id } = Route.useParams();
   const { user } = useAuth();

@@ -120,8 +120,6 @@ function PrintPage() {
       </div>
 
       <div ref={printRef} className="mx-auto max-w-3xl bg-white p-8 text-black shadow-sm print:p-0 print:shadow-none">
-
-      <div className="mx-auto max-w-3xl bg-white p-8 text-black shadow-sm print:p-0 print:shadow-none">
         <div className="mb-4 flex items-start justify-between border-b pb-3">
           <div>
             <h1 className="text-xl font-bold">IZVEŠTAJ O KVARU</h1>

@@ -104,14 +104,22 @@ function PrintPage() {
 
   return (
     <div className="min-h-screen bg-muted/30 py-6">
-      <div className="no-print mx-auto mb-4 flex max-w-3xl items-center justify-between px-4">
+      <div className="no-print mx-auto mb-4 flex max-w-3xl items-center justify-between gap-2 px-4">
         <Button asChild variant="ghost" size="sm">
           <Link to="/izvestaj/$id" params={{ id }}><ArrowLeft className="mr-1 h-4 w-4" />Nazad</Link>
         </Button>
-        <Button size="sm" onClick={() => window.print()}>
-          <Printer className="mr-1 h-4 w-4" />Štampaj
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => window.print()}>
+            <Printer className="mr-1 h-4 w-4" />Štampaj
+          </Button>
+          <Button size="sm" onClick={handleDownloadPdf} disabled={generating}>
+            {generating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
+            Preuzmi PDF
+          </Button>
+        </div>
       </div>
+
+      <div ref={printRef} className="mx-auto max-w-3xl bg-white p-8 text-black shadow-sm print:p-0 print:shadow-none">
 
       <div className="mx-auto max-w-3xl bg-white p-8 text-black shadow-sm print:p-0 print:shadow-none">
         <div className="mb-4 flex items-start justify-between border-b pb-3">

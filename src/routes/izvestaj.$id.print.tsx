@@ -88,9 +88,9 @@ function PrintPage() {
           <Button size="sm" variant="outline" onClick={() => window.print()}>
             <Printer className="mr-1 h-4 w-4" />Štampaj
           </Button>
-          <Button size="sm" onClick={handleDownloadPdf} disabled={generating}>
-            {generating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
-            Preuzmi PDF
+          <Button size="sm" onClick={handleDownloadDocx} disabled={generating}>
+            {generating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FileText className="mr-1 h-4 w-4" />}
+            Preuzmi Word
           </Button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Printer, Loader2, Download } from "lucide-react";
+import { ArrowLeft, Printer, Loader2, FileText } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,15 +40,16 @@ function PrintPage() {
   const [generating, setGenerating] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadDocx = async () => {
     if (!form) return;
     setGenerating(true);
     try {
-      const { exportReportToPdf } = await import("@/lib/pdf-export");
-      await exportReportToPdf(form);
-      toast.success("PDF preuzet");
+      const { exportReportToDocx } = await import("@/lib/docx-export");
+      await exportReportToDocx(form);
+      toast.success("Word dokument preuzet");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Greška pri generisanju PDF-a");
+      console.error("DOCX export failed:", e);
+      toast.error(e instanceof Error ? e.message : "Greška pri generisanju Word dokumenta");
     } finally {
       setGenerating(false);
     }
@@ -87,9 +88,9 @@ function PrintPage() {
           <Button size="sm" variant="outline" onClick={() => window.print()}>
             <Printer className="mr-1 h-4 w-4" />Štampaj
           </Button>
-          <Button size="sm" onClick={handleDownloadPdf} disabled={generating}>
-            {generating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
-            Preuzmi PDF
+          <Button size="sm" onClick={handleDownloadDocx} disabled={generating}>
+            {generating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FileText className="mr-1 h-4 w-4" />}
+            Preuzmi Word
           </Button>
         </div>
       </div>

@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Save, Sparkles, CheckCircle2, Loader2, Trash2, Plus, Printer, ArrowLeft, Wand2, Download,
+  Save, Sparkles, CheckCircle2, Loader2, Trash2, Plus, Printer, ArrowLeft, Wand2, FileText,
 } from "lucide-react";
-import { exportReportToPdf } from "@/lib/pdf-export";
+import { exportReportToDocx } from "@/lib/docx-export";
 import { useServerFn } from "@tanstack/react-start";
 
 import { RequireAuth } from "@/components/require-auth";
@@ -224,16 +224,16 @@ function ReportPage() {
     toast.success("Izveštaj završen i sačuvan.");
   };
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadDocx = async () => {
     if (!allRequiredVerified) {
-      toast.warning("Neka obavezna polja nisu proverena — PDF se ipak generiše.");
+      toast.warning("Neka obavezna polja nisu proverena — Word se ipak generiše.");
     }
     try {
-      await exportReportToPdf(form);
-      toast.success("PDF preuzet.");
+      await exportReportToDocx(form);
+      toast.success("Word dokument preuzet");
     } catch (e) {
-      console.error("PDF export failed:", e);
-      toast.error(e instanceof Error ? e.message : "Greška pri PDF-u");
+      console.error("DOCX export failed:", e);
+      toast.error(e instanceof Error ? e.message : "Greška pri generisanju Word dokumenta");
     }
   };
 
@@ -356,11 +356,11 @@ function ReportPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleDownloadPdf}
+              onClick={handleDownloadDocx}
               disabled={blockedActions}
               title={blockedActions ? "Označite sva obavezna polja kao 'Provereno'" : ""}
             >
-              <Download className="mr-1 h-4 w-4" />Preuzmi PDF
+              <FileText className="mr-1 h-4 w-4" />Preuzmi Word
             </Button>
             <Button variant="outline" size="sm" onClick={() => doSave()} disabled={saving} className="hidden sm:inline-flex">
               {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}

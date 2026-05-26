@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as IzvestajIdRouteImport } from './routes/izvestaj.$id'
 import { Route as IzvestajIdPrintRouteImport } from './routes/izvestaj.$id.print'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -38,12 +44,14 @@ const IzvestajIdPrintRoute = IzvestajIdPrintRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/izvestaj/$id': typeof IzvestajIdRouteWithChildren
   '/izvestaj/$id/print': typeof IzvestajIdPrintRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/izvestaj/$id': typeof IzvestajIdRouteWithChildren
   '/izvestaj/$id/print': typeof IzvestajIdPrintRoute
 }
@@ -51,25 +59,50 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/izvestaj/$id': typeof IzvestajIdRouteWithChildren
   '/izvestaj/$id/print': typeof IzvestajIdPrintRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/izvestaj/$id' | '/izvestaj/$id/print'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/reset-password'
+    | '/izvestaj/$id'
+    | '/izvestaj/$id/print'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/izvestaj/$id' | '/izvestaj/$id/print'
-  id: '__root__' | '/' | '/login' | '/izvestaj/$id' | '/izvestaj/$id/print'
+  to:
+    | '/'
+    | '/login'
+    | '/reset-password'
+    | '/izvestaj/$id'
+    | '/izvestaj/$id/print'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/reset-password'
+    | '/izvestaj/$id'
+    | '/izvestaj/$id/print'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   IzvestajIdRoute: typeof IzvestajIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -116,17 +149,9 @@ const IzvestajIdRouteWithChildren = IzvestajIdRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   IzvestajIdRoute: IzvestajIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

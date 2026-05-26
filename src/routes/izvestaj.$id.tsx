@@ -472,11 +472,11 @@ function ReportPage() {
             <AccordionItem value="s3" className="rounded-lg border bg-card">
               <AccordionTrigger className="px-4">3. Opis i otklanjanje</AccordionTrigger>
               <AccordionContent className="space-y-4 px-4 pb-4">
-                <FieldWithAI label="Uzrok kvara" form={form} setField={setField} fieldKey="uzrok" rows={3} aiClass={aiClass("uzrok")} {...fProps("uzrok")} />
+                <FieldWithAI label="Uzrok kvara" form={form} setField={setField} fieldKey="uzrok" rows={3} aiClass={aiClass("uzrok")} required verified={!!verified["uzrok"]} onVerifyToggle={toggleVerified} />
                 <Field label="Posledice kvara" {...fProps("posledice")}>
                   <Textarea rows={2} value={form.posledice} onChange={(e) => setField("posledice", e.target.value)} className={aiClass("posledice")} />
                 </Field>
-                <FieldWithAI label="Način otklanjanja, kratki opis poslova" form={form} setField={setField} fieldKey="nacin_otklanjanja" rows={3} aiClass={aiClass("nacin_otklanjanja")} {...fProps("nacin_otklanjanja")} />
+                <FieldWithAI label="Način otklanjanja, kratki opis poslova" form={form} setField={setField} fieldKey="nacin_otklanjanja" rows={3} aiClass={aiClass("nacin_otklanjanja")} required verified={!!verified["nacin_otklanjanja"]} onVerifyToggle={toggleVerified} />
                 <Field label="Ostale usluge (opciono)">
                   <Textarea rows={2} value={form.ostale_usluge} onChange={(e) => setField("ostale_usluge", e.target.value)} />
                 </Field>

@@ -60,6 +60,25 @@ function LoginPage() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast.error("Unesite email adresu");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success("Email za reset lozinke je poslat. Proverite inbox.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Greška pri slanju email-a");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-industrial px-4 py-12">
       <div className="w-full max-w-md">

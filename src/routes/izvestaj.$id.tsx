@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Save, Sparkles, CheckCircle2, Loader2, Trash2, Plus, Printer, ArrowLeft, Wand2, FileText,
+  Save, Sparkles, CheckCircle2, Loader2, Trash2, Plus, Printer, ArrowLeft, Wand2, FileSpreadsheet,
 } from "lucide-react";
-import { exportReportToDocx } from "@/lib/docx-export";
+import { exportReportToXlsx } from "@/lib/xlsx-export";
 import { useServerFn } from "@tanstack/react-start";
 
 import { RequireAuth } from "@/components/require-auth";
@@ -224,16 +224,16 @@ function ReportPage() {
     toast.success("Izveštaj završen i sačuvan.");
   };
 
-  const handleDownloadDocx = async () => {
+  const handleDownloadXlsx = async () => {
     if (!allRequiredVerified) {
-      toast.warning("Neka obavezna polja nisu proverena — Word se ipak generiše.");
+      toast.warning("Neka obavezna polja nisu proverena — Excel se ipak generiše.");
     }
     try {
-      await exportReportToDocx(form);
-      toast.success("Word dokument preuzet");
+      await exportReportToXlsx(form);
+      toast.success("Excel fajl preuzet");
     } catch (e) {
-      console.error("DOCX export failed:", e);
-      toast.error(e instanceof Error ? e.message : "Greška pri generisanju Word dokumenta");
+      console.error("XLSX export failed:", e);
+      toast.error(e instanceof Error ? e.message : "Greška pri generisanju Excel fajla");
     }
   };
 
@@ -356,11 +356,11 @@ function ReportPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleDownloadDocx}
+              onClick={handleDownloadXlsx}
               disabled={blockedActions}
               title={blockedActions ? "Označite sva obavezna polja kao 'Provereno'" : ""}
             >
-              <FileText className="mr-1 h-4 w-4" />Preuzmi Word
+              <FileSpreadsheet className="mr-1 h-4 w-4" />Preuzmi Excel
             </Button>
             <Button variant="outline" size="sm" onClick={() => doSave()} disabled={saving} className="hidden sm:inline-flex">
               {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}

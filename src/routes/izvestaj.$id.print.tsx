@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Printer, Loader2, FileText } from "lucide-react";
+import { ArrowLeft, Printer, Loader2, FileSpreadsheet } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,16 +40,16 @@ function PrintPage() {
   const [generating, setGenerating] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
-  const handleDownloadDocx = async () => {
+  const handleDownloadXlsx = async () => {
     if (!form) return;
     setGenerating(true);
     try {
-      const { exportReportToDocx } = await import("@/lib/docx-export");
-      await exportReportToDocx(form);
-      toast.success("Word dokument preuzet");
+      const { exportReportToXlsx } = await import("@/lib/xlsx-export");
+      await exportReportToXlsx(form);
+      toast.success("Excel fajl preuzet");
     } catch (e) {
-      console.error("DOCX export failed:", e);
-      toast.error(e instanceof Error ? e.message : "Greška pri generisanju Word dokumenta");
+      console.error("XLSX export failed:", e);
+      toast.error(e instanceof Error ? e.message : "Greška pri generisanju Excel fajla");
     } finally {
       setGenerating(false);
     }
@@ -88,9 +88,9 @@ function PrintPage() {
           <Button size="sm" variant="outline" onClick={() => window.print()}>
             <Printer className="mr-1 h-4 w-4" />Štampaj
           </Button>
-          <Button size="sm" onClick={handleDownloadDocx} disabled={generating}>
-            {generating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FileText className="mr-1 h-4 w-4" />}
-            Preuzmi Word
+          <Button size="sm" onClick={handleDownloadXlsx} disabled={generating}>
+            {generating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-1 h-4 w-4" />}
+            Preuzmi Excel
           </Button>
         </div>
       </div>

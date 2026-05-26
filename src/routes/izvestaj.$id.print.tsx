@@ -40,15 +40,16 @@ function PrintPage() {
   const [generating, setGenerating] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadDocx = async () => {
     if (!form) return;
     setGenerating(true);
     try {
-      const { exportReportToPdf } = await import("@/lib/pdf-export");
-      await exportReportToPdf(form);
-      toast.success("PDF preuzet");
+      const { exportReportToDocx } = await import("@/lib/docx-export");
+      await exportReportToDocx(form);
+      toast.success("Word dokument preuzet");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Greška pri generisanju PDF-a");
+      console.error("DOCX export failed:", e);
+      toast.error(e instanceof Error ? e.message : "Greška pri generisanju Word dokumenta");
     } finally {
       setGenerating(false);
     }

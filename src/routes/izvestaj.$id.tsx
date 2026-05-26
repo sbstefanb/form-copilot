@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Save, Sparkles, CheckCircle2, Loader2, Trash2, Plus, Printer, ArrowLeft, Wand2, FileText,
+  Save, Sparkles, CheckCircle2, Loader2, Trash2, Plus, Printer, ArrowLeft, Wand2, FileSpreadsheet,
 } from "lucide-react";
-import { exportReportToDocx } from "@/lib/docx-export";
+import { exportReportToXlsx } from "@/lib/xlsx-export";
 import { useServerFn } from "@tanstack/react-start";
 
 import { RequireAuth } from "@/components/require-auth";

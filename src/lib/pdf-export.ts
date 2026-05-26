@@ -2,9 +2,9 @@ import { computeDuration, STATUS_LABELS, type ReportFormState } from "./report-t
 
 // CDN URLs for Noto Sans TTF (full Serbian latinica support: š đ č ć ž)
 const FONT_URL_REGULAR =
-  "https://cdn.jsdelivr.net/npm/@expo-google-fonts/noto-sans/NotoSans_400Regular.ttf";
+  "https://cdn.jsdelivr.net/npm/@expo-google-fonts/noto-sans/400Regular/NotoSans_400Regular.ttf";
 const FONT_URL_BOLD =
-  "https://cdn.jsdelivr.net/npm/@expo-google-fonts/noto-sans/NotoSans_700Bold.ttf";
+  "https://cdn.jsdelivr.net/npm/@expo-google-fonts/noto-sans/700Bold/NotoSans_700Bold.ttf";
 
 let fontsPromise: Promise<{ regular: string; bold: string }> | null = null;
 
@@ -41,7 +41,7 @@ export async function exportReportToPdf(form: ReportFormState) {
   const { default: jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
 
-  // Register Noto Sans for proper Serbian latinica
+  // Register Noto Sans for proper Serbian latinica — required, no fallback
   try {
     const { regular, bold } = await loadFonts();
     pdf.addFileToVFS("NotoSans-Regular.ttf", regular);
@@ -49,11 +49,12 @@ export async function exportReportToPdf(form: ReportFormState) {
     pdf.addFileToVFS("NotoSans-Bold.ttf", bold);
     pdf.addFont("NotoSans-Bold.ttf", "NotoSans", "bold");
     pdf.setFont("NotoSans", "normal");
-  } catch {
-    // fallback to default font if CDN unreachable
+  } catch (err) {
+    console.error("PDF font load failed:", err);
+    throw new Error("PDF font se ne učitava — proverite internet konekciju.");
   }
 
-  const FONT = (pdf.getFontList() as any).NotoSans ? "NotoSans" : "helvetica";
+  const FONT = "NotoSans";
 
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();

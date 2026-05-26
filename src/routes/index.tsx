@@ -1,12 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Plus, Eye, Printer, Inbox, Loader2 } from "lucide-react";
+import { Plus, Eye, Printer, Inbox, Loader2, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { RequireAuth } from "@/components/require-auth";
 import { AppHeader } from "@/components/app-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import type { ReportStatus } from "@/lib/report-types";
 import { toast } from "sonner";
@@ -44,7 +48,8 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | ReportStatus>("all");
   const [showOnboard, setShowOnboard] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ReportRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && !window.localStorage.getItem(ONBOARD_KEY)) {
@@ -74,21 +79,26 @@ function Dashboard() {
     setShowOnboard(false);
   };
 
-  const createNew = async () => {
+  const createNew = () => {
     if (!user) return;
-    setCreating(true);
-    // create a draft row server-side so evidencioni_broj is generated immediately
-    const { data, error } = await supabase
+    navigate({ to: "/izvestaj/$id", params: { id: "novi" } });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase
       .from("failure_reports")
-      .insert({ user_id: user.id, evidencioni_broj: "" } as any)
-      .select("id")
-      .single();
-    setCreating(false);
+      .delete()
+      .eq("id", deleteTarget.id);
+    setDeleting(false);
     if (error) {
       toast.error(error.message);
       return;
     }
-    navigate({ to: "/izvestaj/$id", params: { id: data.id } });
+    setReports((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+    toast.success("Izveštaj obrisan.");
+    setDeleteTarget(null);
   };
 
   return (
@@ -104,8 +114,8 @@ function Dashboard() {
               Popunite novi izveštaj o kvaru (obrazac P-12-05) — AI asistent vam pomaže.
             </p>
           </div>
-          <Button size="lg" onClick={createNew} disabled={creating} className="shadow-md">
-            {creating ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Plus className="mr-2 h-5 w-5" />}
+          <Button size="lg" onClick={createNew} className="shadow-md">
+            <Plus className="mr-2 h-5 w-5" />
             Novi izveštaj o kvaru
           </Button>
         </Card>
@@ -176,6 +186,15 @@ function Dashboard() {
                               <Printer className="h-4 w-4" />
                             </Link>
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Obriši"
+                            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => setDeleteTarget(r)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -206,6 +225,29 @@ function Dashboard() {
           </Card>
         </div>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Obrisati izveštaj?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Da li ste sigurni da želite da obrišete izveštaj{" "}
+              <strong className="font-mono">{deleteTarget?.evidencioni_broj}</strong>? Ova akcija je nepovratna.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Otkaži</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); void confirmDelete(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Trash2 className="mr-1 h-4 w-4" />}
+              Obriši
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

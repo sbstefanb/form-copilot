@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
@@ -43,19 +44,37 @@ const REQUIRED_FIELDS: FieldKey[] = [
   "vrsta_kvara", "pogon", "tehnoloska_linija", "tehnicki_sistem", "sklop_podsklop",
   "vreme_prijave", "vreme_otklanjanja", "uzrok", "posledice", "nacin_otklanjanja", "ispunio",
 ];
+
+const REQUIRED_LABELS: Record<string, string> = {
+  vrsta_kvara: "Vrsta kvara",
+  pogon: "Pogon",
+  tehnoloska_linija: "Tehnološka linija",
+  tehnicki_sistem: "Tehnički sistem",
+  sklop_podsklop: "Sklop / podsklop",
+  vreme_prijave: "Vreme prijave",
+  vreme_otklanjanja: "Vreme otklanjanja",
+  uzrok: "Uzrok kvara",
+  posledice: "Posledice",
+  nacin_otklanjanja: "Način otklanjanja",
+  ispunio: "Ispunio",
+};
+
 const isEmpty = (v: unknown) =>
   v === "" || v === null || v === undefined || (Array.isArray(v) && v.length === 0);
 
 function ReportPage() {
   const { id } = Route.useParams();
+  const isDraft = id === "novi";
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState<ReportFormState>(() => emptyReport());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isDraft);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [aiFilled, setAiFilled] = useState<Set<string>>(new Set());
+  const [verified, setVerified] = useState<Record<string, boolean>>({});
+  const [isDirty, setIsDirty] = useState(false);
 
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [validating, setValidating] = useState(false);
@@ -65,8 +84,9 @@ function ReportPage() {
 
   const validate = useServerFn(aiValidateForm);
 
-  // Load
+  // Load existing report (skip for new drafts)
   useEffect(() => {
+    if (isDraft) return;
     let active = true;
     (async () => {
       const { data, error } = await supabase
@@ -89,10 +109,12 @@ function ReportPage() {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [id, navigate]);
+  }, [id, navigate, isDraft]);
 
   const setField = useCallback(<K extends FieldKey>(key: K, value: ReportFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    setIsDirty(true);
+    setVerified((prev) => (prev[key as string] ? { ...prev, [key as string]: false } : prev));
     setAiFilled((prev) => {
       if (!prev.has(key as string)) return prev;
       const next = new Set(prev);
@@ -101,8 +123,19 @@ function ReportPage() {
     });
   }, []);
 
+  const toggleVerified = useCallback((key: string, val: boolean) => {
+    setVerified((prev) => ({ ...prev, [key]: val }));
+  }, []);
+
   const handleExtract = useCallback((extracted: Partial<ReportFormState>, filled: Set<string>) => {
     setForm((prev) => ({ ...prev, ...extracted }));
+    setIsDirty(true);
+    // AI-filled fields must be re-verified by user
+    setVerified((prev) => {
+      const next = { ...prev };
+      filled.forEach((f) => { next[f] = false; });
+      return next;
+    });
     setAiFilled((prev) => {
       const next = new Set(prev);
       filled.forEach((f) => next.add(f));
@@ -110,28 +143,62 @@ function ReportPage() {
     });
   }, []);
 
-  // Save
-  const doSave = useCallback(async (silent = false) => {
-    if (!user) return;
+  // Save (insert if draft, update otherwise)
+  const doSave = useCallback(async (silent = false): Promise<string | null> => {
+    if (!user) return null;
     setSaving(true);
     const payload = formToRow(formRef.current, user.id);
+    if (isDraft) {
+      const { data, error } = await supabase
+        .from("failure_reports")
+        .insert({ ...payload, evidencioni_broj: "" } as any)
+        .select("id")
+        .single();
+      setSaving(false);
+      if (error) {
+        if (!silent) toast.error(error.message);
+        return null;
+      }
+      setSavedAt(new Date());
+      setIsDirty(false);
+      if (!silent) toast.success("Sačuvano.");
+      // Switch URL to real id
+      navigate({ to: "/izvestaj/$id", params: { id: data.id }, replace: true });
+      return data.id;
+    }
     const { error } = await supabase.from("failure_reports").update(payload).eq("id", id);
     setSaving(false);
     if (error) {
       if (!silent) toast.error(error.message);
-      return false;
+      return null;
     }
     setSavedAt(new Date());
+    setIsDirty(false);
     if (!silent) toast.success("Sačuvano.");
-    return true;
-  }, [id, user]);
+    return id;
+  }, [id, user, isDraft, navigate]);
 
-  // Auto-save every 30s if dirty (simple: always save)
+  // Auto-save every 30s, only when dirty and not a draft
   useEffect(() => {
-    if (loading) return;
-    const t = setInterval(() => { void doSave(true); }, 30000);
+    if (loading || isDraft) return;
+    const t = setInterval(() => {
+      if (isDirty) void doSave(true);
+    }, 30000);
     return () => clearInterval(t);
-  }, [loading, doSave]);
+  }, [loading, doSave, isDirty, isDraft]);
+
+  // Verification status
+  const verifiedRequiredCount = REQUIRED_FIELDS.filter(
+    (k) => !isEmpty(form[k]) && verified[k as string],
+  ).length;
+  const unverifiedRequired = REQUIRED_FIELDS
+    .filter((k) => isEmpty(form[k]) || !verified[k as string])
+    .map((k) => ({
+      key: k as string,
+      label: REQUIRED_LABELS[k as string] ?? (k as string),
+      filled: !isEmpty(form[k]),
+    }));
+  const allRequiredVerified = unverifiedRequired.length === 0;
 
   const handleFinish = async () => {
     const hasErrors = issues.some((i) => i.severity === "error");
@@ -139,18 +206,34 @@ function ReportPage() {
       toast.error("Ispravite greške pre završavanja.");
       return;
     }
-    const ok = await doSave(true);
-    if (!ok) return;
+    if (!allRequiredVerified) {
+      toast.error("Označite sva obavezna polja kao 'Provereno'.");
+      return;
+    }
+    const savedId = await doSave(true);
+    if (!savedId) return;
     const { error } = await supabase
       .from("failure_reports")
       .update({ status: "zavrsen" })
-      .eq("id", id);
+      .eq("id", savedId);
     if (error) {
       toast.error(error.message);
       return;
     }
     setForm((prev) => ({ ...prev, status: "zavrsen" }));
     toast.success("Izveštaj završen i sačuvan.");
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!allRequiredVerified) {
+      toast.warning("Neka obavezna polja nisu proverena — PDF se ipak generiše.");
+    }
+    try {
+      await exportReportToPdf(form);
+      toast.success("PDF preuzet.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Greška pri PDF-u");
+    }
   };
 
   // Time validation (local)
@@ -161,7 +244,6 @@ function ReportPage() {
       : null;
   }, [form.vreme_prijave, form.vreme_otklanjanja]);
 
-  // Local suggestions (instant, no AI)
   const suggestions = useMemo(() => {
     const out: { id: string; title: string; description: string }[] = [];
     const desc = `${form.uzrok} ${form.nacin_otklanjanja}`.toLowerCase();
@@ -197,14 +279,12 @@ function ReportPage() {
       try {
         const res = await validate({ data: { form_state: formToRow(formRef.current, user?.id ?? "") } });
         const aiIssues = ((res as any).issues ?? []) as ValidationIssue[];
-        // Merge with local time-error so it always shows
         const merged = [...aiIssues];
         if (timeError && !merged.find((m) => m.field === "vreme_otklanjanja" && m.severity === "error")) {
           merged.unshift({ severity: "error", message: timeError, field: "vreme_otklanjanja" });
         }
         setIssues(merged);
       } catch {
-        // keep local time error at minimum
         setIssues(timeError ? [{ severity: "error", message: timeError, field: "vreme_otklanjanja" }] : []);
       } finally {
         setValidating(false);
@@ -226,7 +306,16 @@ function ReportPage() {
   }
 
   const hasErrors = issues.some((i) => i.severity === "error");
+  const blockedActions = !allRequiredVerified || hasErrors;
   const aiClass = (k: string) => (aiFilled.has(k) ? "ai-filled" : "");
+
+  // helper props bag for required fields
+  const fProps = (key: FieldKey) => ({
+    fieldKey: key as string,
+    verified: !!verified[key as string],
+    onVerifyToggle: toggleVerified,
+    required: REQUIRED_FIELDS.includes(key),
+  });
 
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-0">
@@ -241,7 +330,9 @@ function ReportPage() {
           <div className="flex flex-col">
             <h1 className="text-base font-bold tracking-tight sm:text-lg">Izveštaj o kvaru</h1>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="font-mono">{form.evidencioni_broj}</span>
+              <span className="font-mono">
+                {isDraft ? "— (biće dodeljen nakon snimanja)" : form.evidencioni_broj}
+              </span>
               <StatusBadge status={form.status} />
             </div>
           </div>
@@ -252,26 +343,17 @@ function ReportPage() {
                 Sačuvano u {savedAt.toLocaleTimeString("sr-RS", { hour: "2-digit", minute: "2-digit" })}
               </span>
             )}
-            <Button asChild variant="outline" size="sm">
-              <Link to="/izvestaj/$id/print" params={{ id }}><Printer className="mr-1 h-4 w-4" />Štampaj</Link>
-            </Button>
+            {!isDraft && (
+              <Button asChild variant="outline" size="sm" disabled={blockedActions}>
+                <Link to="/izvestaj/$id/print" params={{ id }}><Printer className="mr-1 h-4 w-4" />Štampaj</Link>
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
-              onClick={async () => {
-                const missing = REQUIRED_FIELDS.filter((k) => isEmpty(form[k]));
-                if (missing.length > 0 || hasErrors) {
-                  toast.warning(
-                    `PDF se generiše, ali forma nije kompletna${missing.length ? ` (nepopunjeno: ${missing.length})` : ""}.`,
-                  );
-                }
-                try {
-                  await exportReportToPdf(form);
-                  toast.success("PDF preuzet.");
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Greška pri PDF-u");
-                }
-              }}
+              onClick={handleDownloadPdf}
+              disabled={blockedActions}
+              title={blockedActions ? "Označite sva obavezna polja kao 'Provereno'" : ""}
             >
               <Download className="mr-1 h-4 w-4" />Preuzmi PDF
             </Button>
@@ -279,7 +361,13 @@ function ReportPage() {
               {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
               Sačuvaj nacrt
             </Button>
-            <Button size="sm" onClick={handleFinish} disabled={hasErrors || saving} className="hidden sm:inline-flex">
+            <Button
+              size="sm"
+              onClick={handleFinish}
+              disabled={blockedActions || saving}
+              className="hidden sm:inline-flex"
+              title={blockedActions ? "Označite sva obavezna polja kao 'Provereno'" : ""}
+            >
               Završi i sačuvaj
             </Button>
           </div>
@@ -298,12 +386,12 @@ function ReportPage() {
                   <Field label="Datum izveštaja">
                     <Input type="date" value={form.datum} onChange={(e) => setField("datum", e.target.value)} />
                   </Field>
-                  <Field label="Ispunio">
+                  <Field label="Ispunio" {...fProps("ispunio")}>
                     <Input value={form.ispunio} onChange={(e) => setField("ispunio", e.target.value)} placeholder="Ime i prezime" className={aiClass("ispunio")} />
                   </Field>
                 </div>
 
-                <Field label="Vrsta kvara">
+                <Field label="Vrsta kvara" {...fProps("vrsta_kvara")}>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {VRSTE_KVARA.map((v) => (
                       <button
@@ -332,7 +420,7 @@ function ReportPage() {
                 </Field>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Pogon">
+                  <Field label="Pogon" {...fProps("pogon")}>
                     <Input
                       list="pogoni"
                       value={form.pogon}
@@ -344,14 +432,14 @@ function ReportPage() {
                       {POGONI.map((p) => <option key={p} value={p} />)}
                     </datalist>
                   </Field>
-                  <Field label="Tehnološka linija">
+                  <Field label="Tehnološka linija" {...fProps("tehnoloska_linija")}>
                     <Input value={form.tehnoloska_linija} onChange={(e) => setField("tehnoloska_linija", e.target.value)} className={aiClass("tehnoloska_linija")} />
                   </Field>
                 </div>
-                <Field label="Tehnički sistem / mašina" hint="npr. Hidraulični sistem peći">
+                <Field label="Tehnički sistem / mašina" hint="npr. Hidraulični sistem peći" {...fProps("tehnicki_sistem")}>
                   <Input value={form.tehnicki_sistem} onChange={(e) => setField("tehnicki_sistem", e.target.value)} className={aiClass("tehnicki_sistem")} />
                 </Field>
-                <Field label="Sklop, podsklop, element mašine" hint="npr. Pumpa za hidrauliku → elektromotor">
+                <Field label="Sklop, podsklop, element mašine" hint="npr. Pumpa za hidrauliku → elektromotor" {...fProps("sklop_podsklop")}>
                   <Input value={form.sklop_podsklop} onChange={(e) => setField("sklop_podsklop", e.target.value)} className={aiClass("sklop_podsklop")} />
                 </Field>
               </AccordionContent>
@@ -362,10 +450,10 @@ function ReportPage() {
               <AccordionTrigger className="px-4">2. Vremenski okvir</AccordionTrigger>
               <AccordionContent className="space-y-4 px-4 pb-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Vreme prijave kvara">
+                  <Field label="Vreme prijave kvara" {...fProps("vreme_prijave")}>
                     <Input type="datetime-local" value={form.vreme_prijave} onChange={(e) => setField("vreme_prijave", e.target.value)} className={aiClass("vreme_prijave")} />
                   </Field>
-                  <Field label="Vreme otklanjanja kvara">
+                  <Field label="Vreme otklanjanja kvara" {...fProps("vreme_otklanjanja")}>
                     <Input type="datetime-local" value={form.vreme_otklanjanja} onChange={(e) => setField("vreme_otklanjanja", e.target.value)} className={aiClass("vreme_otklanjanja")} />
                   </Field>
                 </div>
@@ -384,11 +472,11 @@ function ReportPage() {
             <AccordionItem value="s3" className="rounded-lg border bg-card">
               <AccordionTrigger className="px-4">3. Opis i otklanjanje</AccordionTrigger>
               <AccordionContent className="space-y-4 px-4 pb-4">
-                <FieldWithAI label="Uzrok kvara" form={form} setField={setField} fieldKey="uzrok" rows={3} aiClass={aiClass("uzrok")} />
-                <Field label="Posledice kvara">
+                <FieldWithAI label="Uzrok kvara" form={form} setField={setField} fieldKey="uzrok" rows={3} aiClass={aiClass("uzrok")} {...fProps("uzrok")} />
+                <Field label="Posledice kvara" {...fProps("posledice")}>
                   <Textarea rows={2} value={form.posledice} onChange={(e) => setField("posledice", e.target.value)} className={aiClass("posledice")} />
                 </Field>
-                <FieldWithAI label="Način otklanjanja, kratki opis poslova" form={form} setField={setField} fieldKey="nacin_otklanjanja" rows={3} aiClass={aiClass("nacin_otklanjanja")} />
+                <FieldWithAI label="Način otklanjanja, kratki opis poslova" form={form} setField={setField} fieldKey="nacin_otklanjanja" rows={3} aiClass={aiClass("nacin_otklanjanja")} {...fProps("nacin_otklanjanja")} />
                 <Field label="Ostale usluge (opciono)">
                   <Textarea rows={2} value={form.ostale_usluge} onChange={(e) => setField("ostale_usluge", e.target.value)} />
                 </Field>
@@ -404,34 +492,40 @@ function ReportPage() {
               <AccordionContent className="space-y-4 px-4 pb-4">
                 <Field label="Ugrađeni delovi i materijal">
                   <div className="space-y-2">
-                    {form.ugradjeni_delovi.map((d, i) => (
-                      <div key={i} className="flex gap-2">
-                        <Input
-                          value={d.naziv}
-                          onChange={(e) => {
-                            const next = [...form.ugradjeni_delovi];
-                            next[i] = { ...next[i], naziv: e.target.value };
-                            setField("ugradjeni_delovi", next);
-                          }}
-                          placeholder="Naziv dela"
-                        />
-                        <Input
-                          type="number"
-                          min={0}
-                          value={d.kolicina}
-                          onChange={(e) => {
-                            const next = [...form.ugradjeni_delovi];
-                            next[i] = { ...next[i], kolicina: Number(e.target.value) || 0 };
-                            setField("ugradjeni_delovi", next);
-                          }}
-                          placeholder="Količina"
-                          className="w-28"
-                        />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => setField("ugradjeni_delovi", form.ugradjeni_delovi.filter((_, j) => j !== i))}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
+                    {form.ugradjeni_delovi.map((d, i) => {
+                      const rowKey = `ugradjeni_delovi.${i}`;
+                      return (
+                        <div key={i} className="flex items-center gap-2">
+                          <Input
+                            value={d.naziv}
+                            onChange={(e) => {
+                              const next = [...form.ugradjeni_delovi];
+                              next[i] = { ...next[i], naziv: e.target.value };
+                              setField("ugradjeni_delovi", next);
+                              setVerified((p) => ({ ...p, [rowKey]: false }));
+                            }}
+                            placeholder="Naziv dela"
+                          />
+                          <Input
+                            type="number"
+                            min={0}
+                            value={d.kolicina}
+                            onChange={(e) => {
+                              const next = [...form.ugradjeni_delovi];
+                              next[i] = { ...next[i], kolicina: Number(e.target.value) || 0 };
+                              setField("ugradjeni_delovi", next);
+                              setVerified((p) => ({ ...p, [rowKey]: false }));
+                            }}
+                            placeholder="Količina"
+                            className="w-28"
+                          />
+                          <VerifyBox checked={!!verified[rowKey]} onChange={(v) => toggleVerified(rowKey, v)} />
+                          <Button type="button" variant="ghost" size="icon" onClick={() => setField("ugradjeni_delovi", form.ugradjeni_delovi.filter((_, j) => j !== i))}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      );
+                    })}
                     <Button type="button" variant="outline" size="sm" onClick={() => setField("ugradjeni_delovi", [...form.ugradjeni_delovi, { naziv: "", kolicina: 1 }])}>
                       <Plus className="mr-1 h-4 w-4" />Dodaj deo
                     </Button>
@@ -440,22 +534,27 @@ function ReportPage() {
 
                 <Field label="Imena angažovanih na popravci">
                   <div className="space-y-2">
-                    {form.imena_angazovanih.map((n, i) => (
-                      <div key={i} className="flex gap-2">
-                        <Input
-                          value={n}
-                          onChange={(e) => {
-                            const next = [...form.imena_angazovanih];
-                            next[i] = e.target.value;
-                            setField("imena_angazovanih", next);
-                          }}
-                          placeholder="Ime i prezime"
-                        />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => setField("imena_angazovanih", form.imena_angazovanih.filter((_, j) => j !== i))}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
+                    {form.imena_angazovanih.map((n, i) => {
+                      const rowKey = `imena_angazovanih.${i}`;
+                      return (
+                        <div key={i} className="flex items-center gap-2">
+                          <Input
+                            value={n}
+                            onChange={(e) => {
+                              const next = [...form.imena_angazovanih];
+                              next[i] = e.target.value;
+                              setField("imena_angazovanih", next);
+                              setVerified((p) => ({ ...p, [rowKey]: false }));
+                            }}
+                            placeholder="Ime i prezime"
+                          />
+                          <VerifyBox checked={!!verified[rowKey]} onChange={(v) => toggleVerified(rowKey, v)} />
+                          <Button type="button" variant="ghost" size="icon" onClick={() => setField("imena_angazovanih", form.imena_angazovanih.filter((_, j) => j !== i))}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      );
+                    })}
                     <Button type="button" variant="outline" size="sm" onClick={() => setField("imena_angazovanih", [...form.imena_angazovanih, ""])}>
                       <Plus className="mr-1 h-4 w-4" />Dodaj radnika
                     </Button>
@@ -481,12 +580,12 @@ function ReportPage() {
                 5. Tehnička analiza <span className="ml-2 rounded-full bg-engineer-border px-2 py-0.5 text-xs font-normal">Popunjava inženjer</span>
               </AccordionTrigger>
               <AccordionContent className="space-y-4 px-4 pb-4">
-                <FieldWithAI label="Tehnička analiza kvara" form={form} setField={setField} fieldKey="tehnicka_analiza" rows={5} aiClass={aiClass("tehnicka_analiza")} />
-                <Field label="Analizu izvršio">
+                <FieldWithAI label="Tehnička analiza kvara" form={form} setField={setField} fieldKey="tehnicka_analiza" rows={5} aiClass={aiClass("tehnicka_analiza")} fieldVerifyKey="tehnicka_analiza" verified={!!verified["tehnicka_analiza"]} onVerifyToggle={toggleVerified} />
+                <Field label="Analizu izvršio" fieldKey="analizu_izvrsio" verified={!!verified["analizu_izvrsio"]} onVerifyToggle={toggleVerified}>
                   <Input value={form.analizu_izvrsio} onChange={(e) => setField("analizu_izvrsio", e.target.value)} />
                 </Field>
-                <FieldWithAI label="Predlog korektivne mere" form={form} setField={setField} fieldKey="korektivna_mera" rows={4} aiClass={aiClass("korektivna_mera")} />
-                <Field label="Korektivnu meru predložio">
+                <FieldWithAI label="Predlog korektivne mere" form={form} setField={setField} fieldKey="korektivna_mera" rows={4} aiClass={aiClass("korektivna_mera")} fieldVerifyKey="korektivna_mera" verified={!!verified["korektivna_mera"]} onVerifyToggle={toggleVerified} />
+                <Field label="Korektivnu meru predložio" fieldKey="korektivnu_meru_predlozio" verified={!!verified["korektivnu_meru_predlozio"]} onVerifyToggle={toggleVerified}>
                   <Input value={form.korektivnu_meru_predlozio} onChange={(e) => setField("korektivnu_meru_predlozio", e.target.value)} />
                 </Field>
               </AccordionContent>
@@ -496,9 +595,9 @@ function ReportPage() {
             <AccordionItem value="s6" className="rounded-lg border bg-card">
               <AccordionTrigger className="px-4">6. Potpis</AccordionTrigger>
               <AccordionContent className="space-y-4 px-4 pb-4">
-                <Field label="Ispunio">
-                  <Input value={form.ispunio} onChange={(e) => setField("ispunio", e.target.value)} placeholder="Ime i prezime" />
-                </Field>
+                <p className="text-xs text-muted-foreground">
+                  Ime potpisnika unosi se u polju <strong>"Ispunio"</strong> u sekciji 1.
+                </p>
                 <p className="text-xs text-muted-foreground">
                   Trenutni status: <strong>{STATUS_LABELS[form.status]}</strong>
                 </p>
@@ -516,6 +615,9 @@ function ReportPage() {
               suggestions={suggestions}
               issues={issues}
               validating={validating}
+              verifiedCount={verifiedRequiredCount}
+              requiredCount={REQUIRED_FIELDS.length}
+              unverifiedRequired={unverifiedRequired}
             />
           </div>
         </aside>
@@ -526,7 +628,7 @@ function ReportPage() {
         <Button variant="outline" size="sm" onClick={() => doSave()} disabled={saving} className="flex-1">
           <Save className="mr-1 h-4 w-4" />Nacrt
         </Button>
-        <Button size="sm" onClick={handleFinish} disabled={hasErrors || saving} className="flex-1">
+        <Button size="sm" onClick={handleFinish} disabled={blockedActions || saving} className="flex-1">
           Završi
         </Button>
         <Sheet>
@@ -545,6 +647,9 @@ function ReportPage() {
               suggestions={suggestions}
               issues={issues}
               validating={validating}
+              verifiedCount={verifiedRequiredCount}
+              requiredCount={REQUIRED_FIELDS.length}
+              unverifiedRequired={unverifiedRequired}
             />
           </SheetContent>
         </Sheet>
@@ -553,10 +658,41 @@ function ReportPage() {
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function VerifyBox({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="inline-flex shrink-0 cursor-pointer items-center gap-1 text-[11px] text-muted-foreground select-none">
+      <Checkbox
+        checked={checked}
+        onCheckedChange={(v) => onChange(v === true)}
+        className="h-3.5 w-3.5"
+      />
+      <span>Provereno</span>
+    </label>
+  );
+}
+
+function Field({
+  label, hint, children, required, fieldKey, verified, onVerifyToggle,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+  required?: boolean;
+  fieldKey?: string;
+  verified?: boolean;
+  onVerifyToggle?: (key: string, v: boolean) => void;
+}) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-sm font-medium">{label}</Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-sm font-medium">
+          {label}
+          {required && <span className="ml-0.5 text-destructive">*</span>}
+        </Label>
+        {fieldKey && onVerifyToggle && (
+          <VerifyBox checked={!!verified} onChange={(v) => onVerifyToggle(fieldKey, v)} />
+        )}
+      </div>
       {children}
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
@@ -565,6 +701,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 function FieldWithAI({
   label, form, setField, fieldKey, rows, aiClass,
+  required, fieldVerifyKey, verified, onVerifyToggle,
 }: {
   label: string;
   form: ReportFormState;
@@ -572,12 +709,17 @@ function FieldWithAI({
   fieldKey: "uzrok" | "nacin_otklanjanja" | "tehnicka_analiza" | "korektivna_mera";
   rows: number;
   aiClass: string;
+  required?: boolean;
+  fieldVerifyKey?: string;
+  verified?: boolean;
+  onVerifyToggle?: (key: string, v: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [suggestion, setSuggestion] = useState<string>("");
   const suggest = useServerFn(aiSuggestField);
   const { user } = useAuth();
+  const verifyKey = fieldVerifyKey ?? fieldKey;
 
   const run = async () => {
     setOpen(true);
@@ -600,38 +742,46 @@ function FieldWithAI({
 
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">{label}</Label>
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button type="button" variant="ghost" size="sm" onClick={run} className="h-7 text-xs text-primary hover:text-primary">
-              <Wand2 className="mr-1 h-3 w-3" />Pomozi mi
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80" align="end">
-            {busy ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />Razmišljam…
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="whitespace-pre-wrap text-sm">{suggestion || "—"}</p>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setField(fieldKey as FieldKey, suggestion as any);
-                      setOpen(false);
-                    }}
-                    disabled={!suggestion}
-                    className="flex-1"
-                  >Prihvati</Button>
-                  <Button size="sm" variant="outline" onClick={() => setOpen(false)} className="flex-1">Odbaci</Button>
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-sm font-medium">
+          {label}
+          {required && <span className="ml-0.5 text-destructive">*</span>}
+        </Label>
+        <div className="flex items-center gap-2">
+          {onVerifyToggle && (
+            <VerifyBox checked={!!verified} onChange={(v) => onVerifyToggle(verifyKey, v)} />
+          )}
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="ghost" size="sm" onClick={run} className="h-7 text-xs text-primary hover:text-primary">
+                <Wand2 className="mr-1 h-3 w-3" />Pomozi mi
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              {busy ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />Razmišljam…
                 </div>
-              </div>
-            )}
-          </PopoverContent>
-        </Popover>
+              ) : (
+                <div className="space-y-3">
+                  <p className="whitespace-pre-wrap text-sm">{suggestion || "—"}</p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setField(fieldKey as FieldKey, suggestion as any);
+                        setOpen(false);
+                      }}
+                      disabled={!suggestion}
+                      className="flex-1"
+                    >Prihvati</Button>
+                    <Button size="sm" variant="outline" onClick={() => setOpen(false)} className="flex-1">Odbaci</Button>
+                  </div>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
       <Textarea
         rows={rows}

@@ -1,8 +1,59 @@
 import { computeDuration, STATUS_LABELS, type ReportFormState } from "./report-types";
 
+// CDN URLs for Noto Sans TTF (full Serbian latinica support: š đ č ć ž)
+const FONT_URL_REGULAR =
+  "https://cdn.jsdelivr.net/npm/@expo-google-fonts/noto-sans/NotoSans_400Regular.ttf";
+const FONT_URL_BOLD =
+  "https://cdn.jsdelivr.net/npm/@expo-google-fonts/noto-sans/NotoSans_700Bold.ttf";
+
+let fontsPromise: Promise<{ regular: string; bold: string }> | null = null;
+
+async function fetchAsBase64(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Font fetch failed: ${url}`);
+  const buf = await res.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+async function loadFonts() {
+  if (!fontsPromise) {
+    fontsPromise = (async () => {
+      const [regular, bold] = await Promise.all([
+        fetchAsBase64(FONT_URL_REGULAR),
+        fetchAsBase64(FONT_URL_BOLD),
+      ]);
+      return { regular, bold };
+    })().catch((e) => {
+      fontsPromise = null;
+      throw e;
+    });
+  }
+  return fontsPromise;
+}
+
 export async function exportReportToPdf(form: ReportFormState) {
   const { default: jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+
+  // Register Noto Sans for proper Serbian latinica
+  try {
+    const { regular, bold } = await loadFonts();
+    pdf.addFileToVFS("NotoSans-Regular.ttf", regular);
+    pdf.addFont("NotoSans-Regular.ttf", "NotoSans", "normal");
+    pdf.addFileToVFS("NotoSans-Bold.ttf", bold);
+    pdf.addFont("NotoSans-Bold.ttf", "NotoSans", "bold");
+    pdf.setFont("NotoSans", "normal");
+  } catch {
+    // fallback to default font if CDN unreachable
+  }
+
+  const FONT = (pdf.getFontList() as any).NotoSans ? "NotoSans" : "helvetica";
 
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
@@ -21,12 +72,12 @@ export async function exportReportToPdf(form: ReportFormState) {
   };
 
   const drawHeader = () => {
-    pdf.setFont("helvetica", "bold");
+    pdf.setFont(FONT, "bold");
     pdf.setFontSize(14);
-    pdf.text("IZVESTAJ O KVARU", marginX, y);
-    pdf.setFont("helvetica", "normal");
+    pdf.text("IZVEŠTAJ O KVARU", marginX, y);
+    pdf.setFont(FONT, "normal");
     pdf.setFontSize(9);
-    pdf.text("Obrazac P-12-05 — Celicana", marginX, y + 5);
+    pdf.text("Obrazac P-12-05 — Čeličana", marginX, y + 5);
 
     pdf.setFontSize(9);
     const right = pageWidth - marginX;
@@ -44,14 +95,14 @@ export async function exportReportToPdf(form: ReportFormState) {
     ensureSpace(10);
     pdf.setFillColor(235, 235, 235);
     pdf.rect(marginX, y, contentWidth, 7, "F");
-    pdf.setFont("helvetica", "bold");
+    pdf.setFont(FONT, "bold");
     pdf.setFontSize(10);
     pdf.text(title, marginX + 2, y + 5);
     y += 9;
   };
 
   const drawRow = (label: string, value: string) => {
-    pdf.setFont("helvetica", "normal");
+    pdf.setFont(FONT, "normal");
     pdf.setFontSize(9);
     const text = (value && value.trim()) ? value : "—";
     const lines = pdf.splitTextToSize(text, valueWidth - 4);
@@ -64,10 +115,10 @@ export async function exportReportToPdf(form: ReportFormState) {
 
     pdf.setFillColor(248, 248, 248);
     pdf.rect(marginX, y, labelWidth, rowHeight, "F");
-    pdf.setFont("helvetica", "bold");
+    pdf.setFont(FONT, "bold");
     pdf.text(label, marginX + 2, y + 5);
 
-    pdf.setFont("helvetica", "normal");
+    pdf.setFont(FONT, "normal");
     pdf.text(lines, valueX + 2, y + 5);
 
     y += rowHeight;
@@ -86,8 +137,8 @@ export async function exportReportToPdf(form: ReportFormState) {
       : (form.vrsta_kvara || ""),
   );
   drawRow("Pogon", form.pogon);
-  drawRow("Tehnoloska linija", form.tehnoloska_linija);
-  drawRow("Tehnicki sistem / masina", form.tehnicki_sistem);
+  drawRow("Tehnološka linija", form.tehnoloska_linija);
+  drawRow("Tehnički sistem / mašina", form.tehnicki_sistem);
   drawRow("Sklop, podsklop, element", form.sklop_podsklop);
 
   drawSectionTitle("2. Vremenski okvir");
@@ -98,13 +149,13 @@ export async function exportReportToPdf(form: ReportFormState) {
   drawSectionTitle("3. Opis i otklanjanje");
   drawRow("Uzrok kvara", form.uzrok);
   drawRow("Posledice kvara", form.posledice);
-  drawRow("Nacin otklanjanja", form.nacin_otklanjanja);
+  drawRow("Način otklanjanja", form.nacin_otklanjanja);
   drawRow("Ostale usluge", form.ostale_usluge);
   drawRow("Napomena", form.napomena);
 
-  drawSectionTitle("4. Ugradjeni delovi i ljudi");
+  drawSectionTitle("4. Ugrađeni delovi i ljudi");
   drawRow(
-    "Ugradjeni delovi",
+    "Ugrađeni delovi",
     form.ugradjeni_delovi.length === 0
       ? ""
       : form.ugradjeni_delovi
@@ -112,19 +163,19 @@ export async function exportReportToPdf(form: ReportFormState) {
           .join("\n"),
   );
   drawRow(
-    "Imena angazovanih",
+    "Imena angažovanih",
     form.imena_angazovanih.filter(Boolean).join(", "),
   );
   drawRow(
-    "Broj izvrsilaca",
+    "Broj izvršilaca",
     form.broj_izvrsilaca === "" ? "" : String(form.broj_izvrsilaca),
   );
 
-  drawSectionTitle("5. Tehnicka analiza (popunjava inzenjer)");
-  drawRow("Tehnicka analiza", form.tehnicka_analiza);
-  drawRow("Analizu izvrsio", form.analizu_izvrsio);
+  drawSectionTitle("5. Tehnička analiza (popunjava inženjer)");
+  drawRow("Tehnička analiza", form.tehnicka_analiza);
+  drawRow("Analizu izvršio", form.analizu_izvrsio);
   drawRow("Predlog korektivne mere", form.korektivna_mera);
-  drawRow("Korektivnu meru predlozio", form.korektivnu_meru_predlozio);
+  drawRow("Korektivnu meru predložio", form.korektivnu_meru_predlozio);
 
   drawSectionTitle("6. Potpis");
   drawRow("Ispunio", form.ispunio);

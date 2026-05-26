@@ -224,16 +224,16 @@ function ReportPage() {
     toast.success("Izveštaj završen i sačuvan.");
   };
 
-  const handleDownloadDocx = async () => {
+  const handleDownloadXlsx = async () => {
     if (!allRequiredVerified) {
-      toast.warning("Neka obavezna polja nisu proverena — Word se ipak generiše.");
+      toast.warning("Neka obavezna polja nisu proverena — Excel se ipak generiše.");
     }
     try {
-      await exportReportToDocx(form);
-      toast.success("Word dokument preuzet");
+      await exportReportToXlsx(form);
+      toast.success("Excel fajl preuzet");
     } catch (e) {
-      console.error("DOCX export failed:", e);
-      toast.error(e instanceof Error ? e.message : "Greška pri generisanju Word dokumenta");
+      console.error("XLSX export failed:", e);
+      toast.error(e instanceof Error ? e.message : "Greška pri generisanju Excel fajla");
     }
   };
 

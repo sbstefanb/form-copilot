@@ -105,8 +105,8 @@
   --engineer-foreground: oklch(0.32 0.05 70);
   --engineer-border: oklch(0.85 0.1 85);
 
-  /* AI auto-fill highlight (red left border) */
-  --ai-highlight: oklch(0.55 0.21 25);
+  /* AI auto-fill highlight — informational blue, NOT red (red is reserved for errors) */
+  --ai-highlight: oklch(0.62 0.13 240);
 
   /* Status badges */
   --status-draft: oklch(0.91 0.005 260);
@@ -154,10 +154,10 @@
   }
 }
 
-/* AI auto-filled field marker */
+/* AI auto-filled field marker — subtle blue accent on the left, neutral background */
 .ai-filled {
   border-left: 3px solid var(--ai-highlight) !important;
-  background-color: color-mix(in oklab, var(--primary) 4%, var(--card));
+  background-color: color-mix(in oklab, var(--ai-highlight) 4%, var(--card));
 }
 
 /* Print styles for /izvestaj/:id/print */

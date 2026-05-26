@@ -232,6 +232,7 @@ function ReportPage() {
       await exportReportToPdf(form);
       toast.success("PDF preuzet.");
     } catch (e) {
+      console.error("PDF export failed:", e);
       toast.error(e instanceof Error ? e.message : "Greška pri PDF-u");
     }
   };

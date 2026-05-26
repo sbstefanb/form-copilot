@@ -1,10 +1,8 @@
 import { computeDuration, STATUS_LABELS, type ReportFormState } from "./report-types";
 
-// CDN URLs for Noto Sans TTF (full Serbian latinica support: š đ č ć ž)
-const FONT_URL_REGULAR =
-  "https://cdn.jsdelivr.net/npm/@expo-google-fonts/noto-sans/400Regular/NotoSans_400Regular.ttf";
-const FONT_URL_BOLD =
-  "https://cdn.jsdelivr.net/npm/@expo-google-fonts/noto-sans/700Bold/NotoSans_700Bold.ttf";
+// Local TTF files served from /public/fonts (full Serbian latinica support: š đ č ć ž)
+const FONT_URL_REGULAR = "/fonts/NotoSans-Regular.ttf";
+const FONT_URL_BOLD = "/fonts/NotoSans-Bold.ttf";
 
 let fontsPromise: Promise<{ regular: string; bold: string }> | null = null;
 

@@ -224,16 +224,16 @@ function ReportPage() {
     toast.success("Izveštaj završen i sačuvan.");
   };
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadDocx = async () => {
     if (!allRequiredVerified) {
-      toast.warning("Neka obavezna polja nisu proverena — PDF se ipak generiše.");
+      toast.warning("Neka obavezna polja nisu proverena — Word se ipak generiše.");
     }
     try {
-      await exportReportToPdf(form);
-      toast.success("PDF preuzet.");
+      await exportReportToDocx(form);
+      toast.success("Word dokument preuzet");
     } catch (e) {
-      console.error("PDF export failed:", e);
-      toast.error(e instanceof Error ? e.message : "Greška pri PDF-u");
+      console.error("DOCX export failed:", e);
+      toast.error(e instanceof Error ? e.message : "Greška pri generisanju Word dokumenta");
     }
   };
 

@@ -248,7 +248,11 @@ function ReportPage() {
   const suggestions = useMemo(() => {
     const out: { id: string; title: string; description: string }[] = [];
     const desc = `${form.uzrok} ${form.nacin_otklanjanja}`.toLowerCase();
-    if (form.vrsta_kvara === "Mašinski" && /\b(kalem|kontaktor|plc|kabl|transformator)\b/.test(desc)) {
+    if (
+      form.vrsta_kvara === "Mašinski" &&
+      /\b(plc|kontaktor)\b/.test(desc) &&
+      !/\b(motor|pumpa|hidraulika|crevo|ležaj|ulje|cilindar)\b/.test(desc)
+    ) {
       out.push({
         id: "elektro",
         title: "Možda elektro kvar?",

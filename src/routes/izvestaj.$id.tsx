@@ -356,11 +356,11 @@ function ReportPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleDownloadPdf}
+              onClick={handleDownloadDocx}
               disabled={blockedActions}
               title={blockedActions ? "Označite sva obavezna polja kao 'Provereno'" : ""}
             >
-              <Download className="mr-1 h-4 w-4" />Preuzmi PDF
+              <FileText className="mr-1 h-4 w-4" />Preuzmi Word
             </Button>
             <Button variant="outline" size="sm" onClick={() => doSave()} disabled={saving} className="hidden sm:inline-flex">
               {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}

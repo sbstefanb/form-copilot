@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Sparkles, Mic, Loader2, Lightbulb, CheckCircle2, AlertCircle, AlertTriangle } from "lucide-react";
+import { useRef, useState } from "react";
+import { Sparkles, Mic, Square, Loader2, Lightbulb, CheckCircle2, AlertCircle, AlertTriangle, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,12 +19,19 @@ type Props = {
   suggestions: Suggestion[];
   issues: ValidationIssue[];
   validating: boolean;
+  verifiedCount?: number;
+  requiredCount?: number;
+  unverifiedRequired?: { key: string; label: string; filled: boolean }[];
 };
 
-export function AiAssistantPanel({ form, onExtract, suggestions, issues, validating }: Props) {
+export function AiAssistantPanel({
+  form, onExtract, suggestions, issues, validating,
+  verifiedCount = 0, requiredCount = 0, unverifiedRequired = [],
+}: Props) {
   const [desc, setDesc] = useState("");
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
+  const recRef = useRef<any>(null);
   const extract = useServerFn(aiExtractFromDescription);
 
   const runExtract = async () => {
@@ -41,7 +48,6 @@ export function AiAssistantPanel({ form, onExtract, suggestions, issues, validat
       for (const [k, v] of Object.entries(extracted)) {
         if (v == null) continue;
         if (Array.isArray(v) && v.length === 0) continue;
-        // Map ISO datetimes to local string
         if ((k === "vreme_prijave" || k === "vreme_otklanjanja") && typeof v === "string") {
           const d = new Date(v);
           if (!isNaN(d.getTime())) {
@@ -55,7 +61,7 @@ export function AiAssistantPanel({ form, onExtract, suggestions, issues, validat
         }
       }
       onExtract(partial, filled);
-      toast.success(`Popunjeno ${filled.size} ${filled.size === 1 ? "polje" : "polja"} iz opisa.`);
+      toast.success(`Popunjeno ${filled.size} ${filled.size === 1 ? "polje" : "polja"} iz opisa. Označite svako kao "Provereno".`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "AI greška");
     } finally {
@@ -73,15 +79,20 @@ export function AiAssistantPanel({ form, onExtract, suggestions, issues, validat
     rec.lang = "sr-RS";
     rec.continuous = true;
     rec.interimResults = false;
+    recRef.current = rec;
     setListening(true);
     rec.onresult = (e: any) => {
       let txt = "";
       for (let i = e.resultIndex; i < e.results.length; i++) txt += e.results[i][0].transcript;
       setDesc((prev) => (prev ? prev + " " : "") + txt);
     };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
+    rec.onend = () => { setListening(false); recRef.current = null; };
+    rec.onerror = () => { setListening(false); recRef.current = null; };
     rec.start();
+  };
+
+  const stopDictation = () => {
+    try { recRef.current?.stop(); } catch { /* noop */ }
   };
 
   return (
@@ -103,16 +114,27 @@ export function AiAssistantPanel({ form, onExtract, suggestions, issues, validat
           className="resize-none text-sm"
         />
         <div className="mt-3 flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={startDictation}
-            disabled={listening}
-            title="Diktiraj"
-          >
-            {listening ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
-          </Button>
+          {listening ? (
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              onClick={stopDictation}
+              title="Zaustavi diktiranje"
+            >
+              <Square className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={startDictation}
+              title="Diktiraj"
+            >
+              <Mic className="h-4 w-4" />
+            </Button>
+          )}
           <Button onClick={runExtract} disabled={busy} className="flex-1">
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
             Popuni iz opisa
@@ -140,7 +162,33 @@ export function AiAssistantPanel({ form, onExtract, suggestions, issues, validat
         )}
       </Card>
 
-      {/* Card 3: Validation */}
+      {/* Card 3: Verification status */}
+      <Card className="p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <ShieldCheck className={`h-4 w-4 ${verifiedCount === requiredCount && requiredCount > 0 ? "text-emerald-600" : "text-amber-500"}`} />
+          <h3 className="font-semibold">Verifikacija</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Provereno <strong className="text-foreground">{verifiedCount} / {requiredCount}</strong> obaveznih polja
+        </p>
+        {unverifiedRequired.length > 0 && (
+          <ul className="mt-2 space-y-1 text-xs">
+            {unverifiedRequired.map((u) => (
+              <li key={u.key} className="flex items-start gap-1.5">
+                <span className={u.filled ? "text-amber-600" : "text-destructive"}>•</span>
+                <span>
+                  <span className="font-medium">{u.label}</span>
+                  <span className="ml-1 text-muted-foreground">
+                    {u.filled ? "— treba potvrditi" : "— nije popunjeno"}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {/* Card 4: Validation */}
       <Card className="p-4">
         <div className="mb-2 flex items-center gap-2">
           {validating ? (

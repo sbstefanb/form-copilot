@@ -135,7 +135,10 @@ PRAVILA:
    - "warning" za nedostatke koji nisu kritični (prazno polje korektivne mere, broj izvršilaca ne odgovara broju imena, kratak/nejasan opis uzroka)
 4. Maksimalno 5 problema u nizu. Najvažniji prvo.
 5. Ako nema problema, vrati prazan niz: []
-6. Poruke na srpskom (latinica), kratko i konstruktivno.`;
+6. Poruke na srpskom (latinica), kratko i konstruktivno.
+7. VAŽNO — vreme_prijave (kvara) i vreme_otklanjanja prirodno PRETHODE polju 'datum' (datum popunjavanja izveštaja). Kvar se desi prvo, pa se posle popunjava izveštaj o njemu. NE prijavljuj kao grešku ili upozorenje ako je vreme_prijave ili vreme_otklanjanja ranije od 'datum' polja — to je očekivano.
+
+   Jedina vremenska greška koju prijavljuješ je: vreme_otklanjanja PRE vreme_prijave (otklanjanje ne može biti pre prijave istog kvara). Sve ostalo je u redu.`;
 
     const content = await callAI(
       [

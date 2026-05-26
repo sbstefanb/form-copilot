@@ -36,9 +36,26 @@ export async function exportReportToXlsx(form: ReportFormState): Promise<void> {
     },
   });
 
-  // Column widths
-  const widths = [3, 5, 45, 12, 2, 8, 12, 2, 10, 12, 3, 8, 12];
+  // Column widths (A..M)
+  const widths = [3, 5, 35, 18, 3, 12, 14, 3, 14, 14, 3, 20, 14];
   widths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+
+  // Enable auto row height for merged multi-line blocks via wrapText.
+  // ExcelJS does not auto-fit merged cells, so set sensible minimum heights.
+  const multiLineRows: Array<[number, number]> = [
+    [28, 31],   // 6. Uzrok
+    [34, 37],   // 7. Posledice
+    [40, 55],   // 8. Način otklanjanja
+    [58, 63],   // 9. Ugrađeni delovi
+    [66, 68],   // 10. Imena angažovanih
+    [70, 75],   // 11. Ostale usluge
+    [78, 83],   // 12. Napomena
+    [88, 98],   // 13. Tehnička analiza
+    [103, 108], // 14. Korektivna mera
+  ];
+  for (const [from, to] of multiLineRows) {
+    for (let r = from; r <= to; r++) ws.getRow(r).height = 18;
+  }
 
   // Helpers
   const setLabel = (addr: string, value: string, opts: { bold?: boolean; align?: "left" | "right" | "center"; size?: number } = {}) => {

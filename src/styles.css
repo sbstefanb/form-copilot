@@ -154,10 +154,10 @@
   }
 }
 
-/* AI auto-filled field marker */
+/* AI auto-filled field marker — subtle blue accent on the left, neutral background */
 .ai-filled {
   border-left: 3px solid var(--ai-highlight) !important;
-  background-color: color-mix(in oklab, var(--primary) 4%, var(--card));
+  background-color: color-mix(in oklab, var(--ai-highlight) 4%, var(--card));
 }
 
 /* Print styles for /izvestaj/:id/print */

@@ -49,7 +49,7 @@ export async function exportReportToPdf(form: ReportFormState) {
     pdf.setFont("NotoSans", "normal");
   } catch (err) {
     console.error("PDF font load failed:", err);
-    throw new Error("PDF font se ne učitava — proverite internet konekciju.");
+    throw new Error("PDF font nije učitan. Pokušajte ponovo za par sekundi.");
   }
 
   const FONT = "NotoSans";

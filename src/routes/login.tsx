@@ -152,6 +152,17 @@ function LoginPage() {
               {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {mode === "signin" ? "Prijavi se" : "Kreiraj nalog"}
             </Button>
+
+            {mode === "signin" && (
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={busy}
+                className="block w-full text-center text-sm text-muted-foreground hover:text-foreground transition disabled:opacity-50"
+              >
+                Zaboravljena lozinka?
+              </button>
+            )}
           </form>
 
         </Card>

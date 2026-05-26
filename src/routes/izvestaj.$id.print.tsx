@@ -40,16 +40,16 @@ function PrintPage() {
   const [generating, setGenerating] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
-  const handleDownloadDocx = async () => {
+  const handleDownloadXlsx = async () => {
     if (!form) return;
     setGenerating(true);
     try {
-      const { exportReportToDocx } = await import("@/lib/docx-export");
-      await exportReportToDocx(form);
-      toast.success("Word dokument preuzet");
+      const { exportReportToXlsx } = await import("@/lib/xlsx-export");
+      await exportReportToXlsx(form);
+      toast.success("Excel fajl preuzet");
     } catch (e) {
-      console.error("DOCX export failed:", e);
-      toast.error(e instanceof Error ? e.message : "Greška pri generisanju Word dokumenta");
+      console.error("XLSX export failed:", e);
+      toast.error(e instanceof Error ? e.message : "Greška pri generisanju Excel fajla");
     } finally {
       setGenerating(false);
     }

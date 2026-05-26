@@ -138,7 +138,18 @@ PRAVILA:
 6. Poruke na srpskom (latinica), kratko i konstruktivno.
 7. VAŽNO — vreme_prijave (kvara) i vreme_otklanjanja prirodno PRETHODE polju 'datum' (datum popunjavanja izveštaja). Kvar se desi prvo, pa se posle popunjava izveštaj o njemu. NE prijavljuj kao grešku ili upozorenje ako je vreme_prijave ili vreme_otklanjanja ranije od 'datum' polja — to je očekivano.
 
-   Jedina vremenska greška koju prijavljuješ je: vreme_otklanjanja PRE vreme_prijave (otklanjanje ne može biti pre prijave istog kvara). Sve ostalo je u redu.`;
+   Jedina vremenska greška koju prijavljuješ je: vreme_otklanjanja PRE vreme_prijave (otklanjanje ne može biti pre prijave istog kvara). Sve ostalo je u redu.
+
+8. VAŽNO — Klasifikacija vrste kvara je BLAGO pravilo, ne strogo. Mašinsko-elektro mešoviti kvarovi (npr. pumpa + elektromotor + senzor) su uobičajeni u industriji i klasifikuju se po DOMINANTNOM aspektu, ne po svim pomenutim komponentama.
+
+   PRIJAVLJUJ upozorenje za neslaganje vrste kvara SAMO ako je situacija OČIGLEDNA — npr. vrsta = 'Elektro' a opis se ISKLJUČIVO bavi mehaničkim oštećenjem (puklo vratilo, slomljen ležaj) bez ijedne elektro komponente.
+
+   NE PRIJAVLJUJ ako:
+   - opis sadrži više komponenti različitih priroda (mašinski + elektro = mešoviti, normalan slučaj)
+   - vrsta = 'Mašinski' a u opisu se pominju motor, senzor, kontaktor (motor je mašinsko-elektro komponenta, klasifikacija po pumpi/uležištenju je validna)
+   - vrsta = 'Elektro' a u opisu se pominje motor, ležaj, ulje (elektrokomponente nose mehanički deo)
+
+   Cilj: AI prijavljuje samo stvarno pogrešne klasifikacije, ne diskutuje nijanse sa korisnikom.`;
 
     const content = await callAI(
       [
